@@ -123,10 +123,10 @@ class TrOCRDataCollator:
         labels = []
  
         for item in batch:
-            image_path = os.path.join(self.image_dir, item["path"])
+            image_path = os.path.join(self.image_dir, item["file_name"])
             image = Image.open(image_path).convert("RGB")
             images.append(image)
-            labels.append(item["label"])
+            labels.append(item["text"])
  
         pixel_values = self.processor(
             images=images,
