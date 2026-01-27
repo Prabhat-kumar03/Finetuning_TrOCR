@@ -9,7 +9,8 @@ from transformers import (
     TrOCRProcessor,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
-    GenerationConfig
+    GenerationConfig,
+    shift_tokens_right
 )
  
 # -----------------------------
@@ -191,6 +192,19 @@ training_args = Seq2SeqTrainingArguments(
     report_to="none",
     seed=42
 )
+ 
+# -----------------------------
+# Data Collator
+# -----------------------------
+def data_collator(batch):
+    pixel_values = torch.stack([item["pixel_values"] for item in batch])
+    labels = torch.stack([item["labels"] for item in batch])
+    decoder_input_ids = shift_tokens_right(labels, model.config.pad_token_id, model.config.decoder_start_token_id)
+    return {
+        "pixel_values": pixel_values,
+        "labels": labels,
+        "decoder_input_ids": decoder_input_ids
+    }
  
 # -----------------------------
 # Trainer
