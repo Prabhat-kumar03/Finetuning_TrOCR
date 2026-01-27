@@ -48,7 +48,7 @@ MAX_LABEL_LENGTH = 32
 BATCH_SIZE = 16          # Safe for T4 (28GB RAM)
 EPOCHS = 10
 LEARNING_RATE = 5e-5
-DATALOADER_WORKERS = 8   # Azure VM has enough CPU cores
+DATALOADER_WORKERS = 0   # Set to 0 to avoid multiprocessing issues
  
 # -----------------------------
 # Load CSV datasets
@@ -103,7 +103,7 @@ def preprocess(batch):
     ]
  
     return {
-        "file_name": batch["file_name"],
+        "file_name": batch["path"],
         "labels": labels
     }
  
@@ -123,19 +123,23 @@ class TrOCRDataCollator:
         labels = []
  
         for item in batch:
-            image_path = os.path.join(self.image_dir, item["file_name"])
+            image_path = os.path.join(self.image_dir, item["path"])
             image = Image.open(image_path).convert("RGB")
             images.append(image)
-            labels.append(item["labels"])
+            labels.append(item["label"])
  
         pixel_values = self.processor(
             images=images,
             return_tensors="pt"
         ).pixel_values
  
+        labels_tensor = torch.tensor(labels, dtype=torch.long)
+        decoder_input_ids = shift_tokens_right(labels_tensor, self.processor.tokenizer.pad_token_id, self.processor.tokenizer.cls_token_id)
+ 
         return {
             "pixel_values": pixel_values,
-            "labels": torch.tensor(labels, dtype=torch.long)
+            "labels": labels_tensor,
+            "decoder_input_ids": decoder_input_ids
         }
  
 data_collator = TrOCRDataCollator(processor, IMAGE_DIR)
@@ -205,19 +209,6 @@ training_args = Seq2SeqTrainingArguments(
     report_to="none",
     seed=42
 )
- 
-# -----------------------------
-# Data Collator
-# -----------------------------
-def data_collator(batch):
-    pixel_values = torch.stack([item["pixel_values"] for item in batch])
-    labels = torch.stack([item["labels"] for item in batch])
-    decoder_input_ids = shift_tokens_right(labels, model.config.pad_token_id, model.config.decoder_start_token_id)
-    return {
-        "pixel_values": pixel_values,
-        "labels": labels,
-        "decoder_input_ids": decoder_input_ids
-    }
  
 # -----------------------------
 # Trainer
