@@ -29,26 +29,43 @@ train_data = pd.read_csv("./HindiSeg/train.csv")
 val_data = pd.read_csv("./HindiSeg/val.csv")
 
 def preprocess_data(example):
-    try:
-        image = Image.open(os.path.join(base_path, example["path"])).convert("RGB")
-    except Exception as e:
-        print(f"Error loading image {os.path.join(base_path, example['path'])}: {e}")
-        return None
-    
-    # Encode the image (processor handles resizing)
-    pixel_values = processor(image, return_tensors="pt").pixel_values.squeeze()
-    
-    # Encode the target text
-    labels = processor.tokenizer(example["label"], padding="max_length", truncation=True, max_length=128).input_ids
-    
-    return {"pixel_values": pixel_values, "labels": torch.tensor(labels)}
+    image_path = os.path.join(base_path, example["path"])
 
-# Convert to Hugging Face Dataset
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except Exception as e:
+        raise RuntimeError(f"❌ Failed to load image: {image_path}") from e
+
+    pixel_values = processor(
+        image,
+        return_tensors="pt"
+    ).pixel_values.squeeze(0)
+
+    labels = processor.tokenizer(
+        example["label"],
+        padding="max_length",
+        truncation=True,
+        max_length=128
+    ).input_ids
+
+    return {
+        "pixel_values": pixel_values,
+        "labels": labels
+    }
+
 hf_train_dataset = Dataset.from_pandas(train_data)
-hf_train_dataset = hf_train_dataset.map(preprocess_data, remove_columns=["path", "label"])
+hf_train_dataset = hf_train_dataset.map(
+    preprocess_data,
+    remove_columns=hf_train_dataset.column_names,
+    num_proc=1
+)
 
 hf_val_dataset = Dataset.from_pandas(val_data)
-hf_val_dataset = hf_val_dataset.map(preprocess_data, remove_columns=["path", "label"])
+hf_val_dataset = hf_val_dataset.map(
+    preprocess_data,
+    remove_columns=hf_val_dataset.column_names,
+    num_proc=1
+)
 
 
 # training args : 
