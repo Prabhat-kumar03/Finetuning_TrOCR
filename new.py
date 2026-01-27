@@ -103,7 +103,7 @@ def preprocess(batch):
     ]
  
     return {
-        "file_name": batch["path"],
+        "file_name": batch["file_name"],
         "labels": labels
     }
  
