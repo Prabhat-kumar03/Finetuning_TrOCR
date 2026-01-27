@@ -126,7 +126,7 @@ class TrOCRDataCollator:
             image_path = os.path.join(self.image_dir, item["file_name"])
             image = Image.open(image_path).convert("RGB")
             images.append(image)
-            labels.append(item["text"])
+            labels.append(item["labels"])
  
         pixel_values = self.processor(
             images=images,
