@@ -54,7 +54,7 @@ DATALOADER_WORKERS = 0   # Set to 0 to avoid multiprocessing issues
 # Load CSV datasets
 # -----------------------------
 def load_csv(csv_path):
-    df = pd.read_csv(csv_path, header=None, names=["file_name", "text"])
+    df = pd.read_csv(csv_path)
     return Dataset.from_pandas(df)
  
 train_ds = load_csv(os.path.join(DATASET_DIR, "train.csv"))
