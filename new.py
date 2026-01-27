@@ -201,9 +201,9 @@ trainer = Seq2SeqTrainer(
     train_dataset=train_ds,
     eval_dataset=val_ds,
     data_collator=data_collator,
-    compute_metrics=compute_metrics,
-    tokenizer=processor.tokenizer
+    compute_metrics=compute_metrics
 )
+
  
 # -----------------------------
 # Train
