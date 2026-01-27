@@ -9,9 +9,22 @@ from transformers import (
     TrOCRProcessor,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
-    GenerationConfig,
-    shift_tokens_right
+    GenerationConfig
 )
+ 
+# Helper function for shifting tokens
+def shift_tokens_right(input_ids, pad_token_id, decoder_start_token_id):
+    """
+    Shift input ids one token to the right, and wrap the last non pad token (usually <eos>).
+    """
+    shifted_input_ids = input_ids.new_zeros(input_ids.shape)
+    shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
+    shifted_input_ids[:, 0] = decoder_start_token_id
+ 
+    if pad_token_id is None:
+        return shifted_input_ids
+    shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
+    return shifted_input_ids
  
 # -----------------------------
 # GPU configuration
