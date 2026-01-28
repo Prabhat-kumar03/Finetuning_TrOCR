@@ -18,8 +18,8 @@ from transformers.trainer_utils import get_last_checkpoint
 # -----------------------------
 # GPU CHECK
 # -----------------------------
-DEVICE = "cuda"
-assert torch.cuda.is_available(), "CUDA is not available"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+print("Using device:", DEVICE)
 
 
 # -----------------------------
