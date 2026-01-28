@@ -129,45 +129,26 @@ class TrOCRDataCollator:
         self.image_dir = image_dir
  
     def __call__(self, features):
-        # HF Trainer passes a list of dicts: [{'file_name': '...', 'labels': [...]}, ...]
         images = []
         labels_list = []
  
         for item in features:
-            file_name = item["file_name"]
-            label = item["labels"]
-            
-            image_path = os.path.join(self.image_dir, file_name)
+            image_path = os.path.join(self.image_dir, item["file_name"])
             try:
                 image = Image.open(image_path).convert("RGB")
                 images.append(image)
-                labels_list.append(label)
+                labels_list.append(item["labels"])
             except Exception as e:
                 print(f"Skipping {image_path}: {e}")
                 continue
  
-        if not images:
-            raise RuntimeError("Batch is empty. Check image paths or dataset content.")
- 
-        # Processor handles resizing and normalization
-        pixel_values = self.processor(
-            images=images,
-            return_tensors="pt"
-        ).pixel_values
- 
+        pixel_values = self.processor(images=images, return_tensors="pt").pixel_values
         labels_tensor = torch.tensor(labels_list, dtype=torch.long)
-        
-        # Ensure shift_tokens_right is imported or defined
-        decoder_input_ids = shift_tokens_right(
-            labels_tensor, 
-            self.processor.tokenizer.pad_token_id, 
-            self.processor.tokenizer.cls_token_id
-        )
  
+        # The model handles decoder_input_ids automatically from labels!
         return {
             "pixel_values": pixel_values,
-            "labels": labels_tensor,
-            "decoder_input_ids": decoder_input_ids
+            "labels": labels_tensor
         }
 
 
@@ -271,7 +252,18 @@ trainer = Seq2SeqTrainer(
 # Train
 # -----------------------------
 print("🚀 Training started (GPU – Azure T4)...")
-trainer.train()
+# Check if a checkpoint exists in OUTPUT_DIR before starting
+import glob
+last_checkpoint = None
+if os.path.exists(OUTPUT_DIR):
+    checkpoints = glob.glob(os.path.join(OUTPUT_DIR, "checkpoint-*"))
+    if checkpoints:
+        last_checkpoint = True # Tells trainer to find the latest automatically
+
+print("🚀 Training started (GPU – Azure T4)...")
+# Pass the resume flag here
+trainer.train(resume_from_checkpoint=last_checkpoint)
+
  
 # -----------------------------
 # Save final model
