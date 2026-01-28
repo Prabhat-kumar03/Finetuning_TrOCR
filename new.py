@@ -2,6 +2,7 @@ import os
 import torch
 import evaluate
 import pandas as pd
+import logging
 from PIL import Image
 from datasets import Dataset
 from transformers import (
@@ -11,6 +12,15 @@ from transformers import (
     Seq2SeqTrainingArguments,
     GenerationConfig
 )
+
+# Configure logging
+logging.basicConfig(
+    filename='training.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
  
 # Helper function for shifting tokens
 def shift_tokens_right(input_ids, pad_token_id, decoder_start_token_id):
@@ -29,8 +39,15 @@ def shift_tokens_right(input_ids, pad_token_id, decoder_start_token_id):
 # -----------------------------
 # GPU configuration
 # -----------------------------
+logger.info("="*50)
+logger.info("Starting TrOCR Training Script")
+logger.info("="*50)
+
 DEVICE = "cuda"
 assert torch.cuda.is_available(), "CUDA not available"
+logger.info(f"CUDA is available. Device: {torch.cuda.get_device_name(0)}")
+logger.info(f"CUDA version: {torch.version.cuda}")
+logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
  
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -55,17 +72,23 @@ DATALOADER_WORKERS = 0   # Set to 0 to avoid multiprocessing issues
 # -----------------------------
 def load_csv(csv_path):
     df = pd.read_csv(csv_path)
+    logger.info(f"Loaded CSV from {csv_path} with {len(df)} samples")
     return Dataset.from_pandas(df)
- 
+
+logger.info("Loading training and validation datasets...")
 train_ds = load_csv(os.path.join(DATASET_DIR, "train.csv"))
 val_ds   = load_csv(os.path.join(DATASET_DIR, "val.csv"))
- 
-# -----------------------------
-# Load processor & model
-# -----------------------------
+logger.info(f"Training dataset size: {len(train_ds)}")
+logger.info(f"Validation dataset size: {len(val_ds)}")
+
+logger.info(f"Loading model: {MODEL_NAME}")
 processor = TrOCRProcessor.from_pretrained(MODEL_NAME, use_fast=True)
+logger.info("Processor loaded successfully")
+
 model = VisionEncoderDecoderModel.from_pretrained(MODEL_NAME)
+logger.info(f"Model loaded successfully. Total parameters: {sum(p.numel() for p in model.parameters()):,}")
 model.to(DEVICE)
+logger.info(f"Model moved to device: {DEVICE}")
  
 # -----------------------------
 # Generation config (FIXES YOUR ERROR)
@@ -107,8 +130,13 @@ def preprocess(batch):
         "labels": labels
     }
  
+logger.info("Preprocessing training dataset...")
 train_ds = train_ds.map(preprocess, remove_columns=train_ds.column_names)
+logger.info(f"Training dataset preprocessed. Total samples: {len(train_ds)}")
+
+logger.info("Preprocessing validation dataset...")
 val_ds   = val_ds.map(preprocess, remove_columns=val_ds.column_names)
+logger.info(f"Validation dataset preprocessed. Total samples: {len(val_ds)}")
  
 # -----------------------------
 # Lazy image-loading data collator
