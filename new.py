@@ -204,7 +204,11 @@ def compute_metrics(eval_pred):
 # Training arguments (GPU)
 # -----------------------------
 training_args = Seq2SeqTrainingArguments(
-    output_dir=OUTPUT_DIR,
+    output_dir="/mnt/blob/checkpoints",
+    save_strategy="steps",
+    save_steps=200,
+    save_total_limit=2,
+    save_safetensors=True,
  
     per_device_train_batch_size=BATCH_SIZE,
     per_device_eval_batch_size=BATCH_SIZE,
