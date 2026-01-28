@@ -89,6 +89,11 @@ model.config.vocab_size = model.config.decoder.vocab_size
 # Dataset preprocessing
 # -----------------------------
 def preprocess(batch):
+    # Filter out header row if it exists in the data
+    # This prevents the FileNotFoundError for '.../file_name'
+    if batch["file_name"] == "file_name":
+        return {"file_name": None, "labels": None}
+
     encoding = processor.tokenizer(
         batch["text"],
         padding="max_length",
@@ -106,84 +111,83 @@ def preprocess(batch):
         "file_name": batch["file_name"],
         "labels": labels
     }
- 
+
+# 1. Map and then filter out the nullified header rows
 train_ds = train_ds.map(preprocess, remove_columns=train_ds.column_names)
-val_ds   = val_ds.map(preprocess, remove_columns=val_ds.column_names)
- 
-# -----------------------------
-# Lazy image-loading data collator
-# -----------------------------
+train_ds = train_ds.filter(lambda x: x["file_name"] is not None)
+
+val_ds = val_ds.map(preprocess, remove_columns=val_ds.column_names)
+val_ds = val_ds.filter(lambda x: x["file_name"] is not None)
+
 class TrOCRDataCollator:
     def __init__(self, processor, image_dir):
         self.processor = processor
         self.image_dir = image_dir
  
-    def __call__(self, batch):
+    def __call__(self, features):
+        # HF Trainer passes a list of dicts: [{'file_name': '...', 'labels': [...]}, ...]
         images = []
         labels_list = []
  
-        # batch is a dict of lists from HuggingFace datasets
-        file_names = batch["file_name"]
-        labels = batch["labels"]
-        
-        for file_name, label in zip(file_names, labels):
+        for item in features:
+            file_name = item["file_name"]
+            label = item["labels"]
+            
+            image_path = os.path.join(self.image_dir, file_name)
             try:
-                image_path = os.path.join(self.image_dir, file_name)
                 image = Image.open(image_path).convert("RGB")
                 images.append(image)
                 labels_list.append(label)
             except Exception as e:
-                logger.warning(f"Failed to load image {image_path}: {e}")
+                print(f"Skipping {image_path}: {e}")
                 continue
  
         if not images:
-            raise RuntimeError("No images loaded in batch")
+            raise RuntimeError("Batch is empty. Check image paths or dataset content.")
  
+        # Processor handles resizing and normalization
         pixel_values = self.processor(
             images=images,
             return_tensors="pt"
         ).pixel_values
  
         labels_tensor = torch.tensor(labels_list, dtype=torch.long)
-        decoder_input_ids = shift_tokens_right(labels_tensor, self.processor.tokenizer.pad_token_id, self.processor.tokenizer.cls_token_id)
+        
+        # Ensure shift_tokens_right is imported or defined
+        decoder_input_ids = shift_tokens_right(
+            labels_tensor, 
+            self.processor.tokenizer.pad_token_id, 
+            self.processor.tokenizer.cls_token_id
+        )
  
         return {
             "pixel_values": pixel_values,
             "labels": labels_tensor,
             "decoder_input_ids": decoder_input_ids
         }
- 
-data_collator = TrOCRDataCollator(processor, IMAGE_DIR)
- 
+
+
 # -----------------------------
-# Metrics (CER)
+# Compute metrics (CER)
 # -----------------------------
 cer_metric = evaluate.load("cer")
- 
+
 def compute_metrics(eval_pred):
     import numpy as np
- 
     preds, labels = eval_pred
- 
-    decoded_preds = processor.batch_decode(
-        preds, skip_special_tokens=True
-    )
- 
+    
+    decoded_preds = processor.batch_decode(preds, skip_special_tokens=True)
+    
     labels = np.array(labels)
     labels[labels == -100] = processor.tokenizer.pad_token_id
- 
-    decoded_labels = processor.batch_decode(
-        labels, skip_special_tokens=True
-    )
- 
-    cer = cer_metric.compute(
-        predictions=decoded_preds,
-        references=decoded_labels
-    )
- 
+    decoded_labels = processor.batch_decode(labels, skip_special_tokens=True)
+    
+    cer = cer_metric.compute(predictions=decoded_preds, references=decoded_labels)
     return {"cer": cer}
- 
-# -----------------------------
+
+# Create data collator
+data_collator = TrOCRDataCollator(processor, IMAGE_DIR)
+
 # Training arguments (GPU)
 # -----------------------------
 training_args = Seq2SeqTrainingArguments(
