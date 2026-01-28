@@ -28,7 +28,7 @@ print("Using device:", DEVICE)
 MODEL_NAME = "microsoft/trocr-base-handwritten"
 
 DATASET_DIR = "/home/azureuser/hindi_ocr/dataset"
-IMAGE_DIR   = "/home/azureuser/hindi_ocr/dataset/HindiSeg"   # IMPORTANT (see CSV paths)
+IMAGE_DIR   = "/home/azureuser/hindi_ocr/dataset"   # IMPORTANT (see CSV paths)
 OUTPUT_DIR  = "/mnt/blob/checkpoints"
 
 MAX_LABEL_LENGTH = 32
