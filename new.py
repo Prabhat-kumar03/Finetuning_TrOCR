@@ -42,7 +42,7 @@ MODEL_NAME = "microsoft/trocr-base-handwritten"
  
 DATASET_DIR = "/home/azureuser/hindi_ocr/dataset"
 IMAGE_DIR = "/home/azureuser/hindi_ocr/dataset/HindiSeg"
-OUTPUT_DIR = "trocr-hindi-gpu"
+OUTPUT_DIR = "/mnt/blob/checkpoints"
  
 MAX_LABEL_LENGTH = 32
 BATCH_SIZE = 16          # Safe for T4 (28GB RAM)
@@ -72,14 +72,18 @@ model.to(DEVICE)
 # -----------------------------
 gen_config = GenerationConfig(
     max_length=MAX_LABEL_LENGTH,
-    num_beams=1,              # greedy decoding
+    num_beams=1,
     early_stopping=False,
+    # These three lines are the critical fix:
+    decoder_start_token_id=processor.tokenizer.cls_token_id,
+    bos_token_id=processor.tokenizer.cls_token_id,
     pad_token_id=processor.tokenizer.pad_token_id,
     eos_token_id=processor.tokenizer.sep_token_id,
 )
  
 model.generation_config = gen_config
- 
+
+# Also ensure the model config matches (redundancy for safety)
 model.config.decoder_start_token_id = processor.tokenizer.cls_token_id
 model.config.pad_token_id = processor.tokenizer.pad_token_id
 model.config.eos_token_id = processor.tokenizer.sep_token_id
