@@ -178,6 +178,10 @@ def compute_metrics(eval_pred):
 training_args = Seq2SeqTrainingArguments(
     output_dir="/mnt/blob/checkpoints",
 
+    # Sync these two strategies
+    eval_strategy="steps",      # Added: ensures evaluation happens at intervals
+    eval_steps=500,             # Added: matches save_steps for best model tracking
+    
     save_strategy="steps",
     save_steps=500,
     save_total_limit=2,
@@ -188,7 +192,7 @@ training_args = Seq2SeqTrainingArguments(
     learning_rate=LEARNING_RATE,
     num_train_epochs=EPOCHS,
 
-    fp16=True,          # T4 optimized
+    fp16=True,
     bf16=False,
 
     dataloader_num_workers=DATALOADER_WORKERS,
@@ -211,6 +215,7 @@ training_args = Seq2SeqTrainingArguments(
     report_to="none",
     seed=42
 )
+
  
 # -----------------------------
 # Trainer
