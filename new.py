@@ -177,6 +177,33 @@ class TrOCRDataCollator:
 cer_metric = evaluate.load("cer")
 
 def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+
+    # If predictions are logits, take argmax
+    if predictions.ndim == 3:
+        predictions = predictions.argmax(axis=-1)
+
+    # Replace -100 in labels so tokenizer can decode
+    labels = np.where(labels != -100, labels, processor.tokenizer.pad_token_id)
+
+    decoded_preds = processor.batch_decode(
+        predictions,
+        skip_special_tokens=True
+    )
+
+    decoded_labels = processor.batch_decode(
+        labels,
+        skip_special_tokens=True
+    )
+
+    # Compute CER
+    cer = cer_metric.compute(
+        predictions=decoded_preds,
+        references=decoded_labels
+    )
+
+    return {"cer": cer}
+
     import numpy as np
     preds, labels = eval_pred
     
@@ -253,7 +280,7 @@ trainer = Seq2SeqTrainer(
 # Train
 # -----------------------------
 print("🚀 Training started (GPU – Azure T4)...")
-trainer.train(resume_from_checkpoint=True)
+trainer.train()
  
 # -----------------------------
 # Save final model
