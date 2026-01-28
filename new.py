@@ -120,20 +120,31 @@ class TrOCRDataCollator:
  
     def __call__(self, batch):
         images = []
-        labels = []
+        labels_list = []
  
-        for item in batch:
-            image_path = os.path.join(self.image_dir, item["file_name"])
-            image = Image.open(image_path).convert("RGB")
-            images.append(image)
-            labels.append(item["labels"])
+        # batch is a dict of lists from HuggingFace datasets
+        file_names = batch["file_name"]
+        labels = batch["labels"]
+        
+        for file_name, label in zip(file_names, labels):
+            try:
+                image_path = os.path.join(self.image_dir, file_name)
+                image = Image.open(image_path).convert("RGB")
+                images.append(image)
+                labels_list.append(label)
+            except Exception as e:
+                logger.warning(f"Failed to load image {image_path}: {e}")
+                continue
+ 
+        if not images:
+            raise RuntimeError("No images loaded in batch")
  
         pixel_values = self.processor(
             images=images,
             return_tensors="pt"
         ).pixel_values
  
-        labels_tensor = torch.tensor(labels, dtype=torch.long)
+        labels_tensor = torch.tensor(labels_list, dtype=torch.long)
         decoder_input_ids = shift_tokens_right(labels_tensor, self.processor.tokenizer.pad_token_id, self.processor.tokenizer.cls_token_id)
  
         return {
