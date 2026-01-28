@@ -253,7 +253,7 @@ trainer = Seq2SeqTrainer(
 # Train
 # -----------------------------
 print("🚀 Training started (GPU – Azure T4)...")
-trainer.train()
+trainer.train(resume_from_checkpoint=True)
  
 # -----------------------------
 # Save final model
