@@ -159,7 +159,7 @@ def compute_metrics(eval_pred):
 
 
 # -----------------------------
-# TRAINING ARGS (SPOT-VM SAFE)]
+# TRAINING ARGS (SPOT-VM SAFE)
 # -----------------------------
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUTPUT_DIR,
