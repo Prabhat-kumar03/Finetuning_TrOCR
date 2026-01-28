@@ -174,6 +174,7 @@ class TrOCRDataCollator:
 # -----------------------------
 # Compute metrics (CER)
 # -----------------------------
+import numpy as np
 cer_metric = evaluate.load("cer")
 
 def compute_metrics(eval_pred):
@@ -204,17 +205,7 @@ def compute_metrics(eval_pred):
 
     return {"cer": cer}
 
-    import numpy as np
-    preds, labels = eval_pred
-    
-    decoded_preds = processor.batch_decode(preds, skip_special_tokens=True)
-    
-    labels = np.array(labels)
-    labels[labels == -100] = processor.tokenizer.pad_token_id
-    decoded_labels = processor.batch_decode(labels, skip_special_tokens=True)
-    
-    cer = cer_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    return {"cer": cer}
+
 
 # Create data collator
 data_collator = TrOCRDataCollator(processor, IMAGE_DIR)
