@@ -199,8 +199,6 @@ training_args = Seq2SeqTrainingArguments(
     label_smoothing_factor=0.1,
 
     do_eval=True,
-    evaluation_strategy="steps",
-    eval_steps=500,
     logging_steps=100,
 
     predict_with_generate=True,
