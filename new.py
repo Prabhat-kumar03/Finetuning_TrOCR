@@ -164,7 +164,7 @@ def compute_metrics(eval_pred):
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUTPUT_DIR,
 
-    evaluation_strategy="steps",
+    eval_strategy="steps",
     save_strategy="steps",
     save_steps=500,
     eval_steps=500,
